@@ -1,7 +1,7 @@
 var should = require("chai").should(),
     fs = require("fs"),
     nock = require("nock"),
-    request = require("request"),
+    ETagRequest = require("request-etag"),
     _ = require('lodash'),
     loadTranslations = require("../index"),
     initialize = loadTranslations.initialize,
@@ -11,6 +11,9 @@ var should = require("chai").should(),
     configure = loadTranslations.configure;
 
 var http = require("http");
+var request = new ETagRequest({
+    max: 10 * 1024 * 1024
+});
 
 describe("#configure", function() {
   var config;

@@ -39,6 +39,6 @@
   "dependencies": {
     "async": "^2.6.0",
     "lodash": "^4.17.4",
-    "request": "^2.60.0"
+    "request-etag": "^2.0.3"
   }
 }

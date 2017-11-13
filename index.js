@@ -4,10 +4,14 @@
   Default format returned is js for i18n-node-2.
 */
 
-var request = require('request');
+var ETagRequest = require('request-etag');
 var fs = require('fs');
 var _ = require('lodash');
 var async = require('async');
+
+var request = new ETagRequest({
+  max: 10 * 1024 * 1024
+});
 
 var path = 'https://api.phraseapp.com/v2';
 
