@@ -4,101 +4,116 @@
   Default format returned is js for i18n-node-2.
 */
 
-var ETagRequest = require('request-etag');
-var fs = require('fs');
-var _ = require('lodash');
-var async = require('async');
+const ETagRequest = require('request-etag');
+const fs = require('fs');
+const _ = require('lodash');
+const async = require('async');
 
-var request = new ETagRequest({
-  max: 10 * 1024 * 1024
+const request = new ETagRequest({
+    max: 10 * 1024 * 1024
 });
 
-var path = 'https://api.phraseapp.com/v2';
+const path = 'https://api.phraseapp.com/v2';
 
-module.exports = {
-  initialize: function(options, callback) {
-    if (!options.access_token || !options.project_id) {
-      throw new Error('Must supply a value for access_token and project_id');
+module.exports = class PhraseappLoader {
+    constructor(options) {
+        if (!options.access_token || !options.project_id) {
+            throw new Error('Must supply a value for access_token and project_id');
+        }
+
+        this.options = {
+            file_format: "node_json",
+            file_extension: "js",
+            location: process.cwd(),
+            transform: function (translations) {
+                return translations;
+            }
+        };
+
+        this.configure(options)
     }
 
-    if (!callback) {
-      callback = function(err) {
-        if (err) { throw new Error(err); }
-      };
+    configure(options) {
+        return _.extend(this.options, options);
     }
 
-    var config = module.exports.configure(options);
-    module.exports.download(config, callback);
-  },
+    download(callback) {
+        const self = this;
 
-  configure: function(options) {
-    var default_options = {
-      file_format: "node_json",
-      file_extension: "js",
-      location: process.cwd(),
-      transform: function(translations) { return translations; }
-    };
+        this.fetchLocales(function (err, locales) {
+                console.log("Got locales", locales);
+                if (!err) {
+                    async.eachLimit(locales, 2, function (l, callback) {
+                        self.downloadTranslationFile(l, function (err, res) {
+                            if (!err) {
+                                console.log("Translation for " + l + " downloaded successfully.");
+                                return callback(null);
+                            } else {
+                                console.error("Error downloading " + l + ".", err);
+                                return callback(err);
+                            }
+                        });
+                    }, callback);
+                }
+            }
+        );
+    }
 
-    return _.extend({}, default_options, options);
-  },
+    fetchLocales(callback) {
+        const options = this.options;
 
-  download: function(options, callback) {
-    module.exports.fetchLocales(options,
-      function (err, locales) {
-        console.log("Got locales", locales);
-        if (!err) {
-          async.eachLimit(locales, 2, function(l, callback) {
-            module.exports.downloadTranslationFile(l, options, function(err, res) {
-              if (!err) {
-                console.log("Translation for " + l + " downloaded successfully.");
-                return callback(null);
-              } else {
-                console.error("Error downloading " + l + ".", err);
+        request(path + '/projects/' + options.project_id + '/locales?access_token=' + options.access_token, function (err, res, body) {
+            if (!err && res.statusCode === 200) {
+                if (typeof body === 'string') {
+                    try {
+                        body = JSON.parse(body)
+                    } catch (e) {
+                        console.log(e)
+                    }
+                }
+
+                const locales = _.map(body, "code");
+                return callback(null, locales);
+            } else if (err) {
+                console.error("An error occurred when fetching locales", err);
                 return callback(err);
-              }
-            });
-          }, callback);
-        }
-      });
-  },
+            }
+        });
+    }
 
-  fetchLocales: function(options, callback) {
-    var locales;
+    downloadTranslationFile(locale, callback) {
+        const options = this.options;
+        const translationPath = path + '/projects/' + options.project_id + '/locales/' + locale + '/download?access_token=' + options.access_token + '&file_format=' + options.file_format;
 
-    request(path + '/projects/' + options.project_id + '/locales?access_token=' + options.access_token, function(err, res, body) {
-      if (!err && res.statusCode == 200) {
-        locales = _.map(JSON.parse(body), "code");
-        return callback(null, locales);
-      } else if (err) {
-        console.error("An error occurred when fetching locales", err);
-        return callback(err);
-      }
-    });
-  },
+        request(translationPath, function (err, res, body) {
+            if (!err && res.statusCode >= 200 && res.statusCode < 300) {
+                if (typeof body === 'string') {
+                    try {
+                        body = JSON.parse(body)
+                    } catch (e) {
+                        console.log(e);
+                        console.log(body);
+                    }
+                }
 
-  downloadTranslationFile: function(locale, options, callback) {
-    var translationPath = path + '/projects/' + options.project_id + '/locales/' + locale + '/download?access_token=' + options.access_token + '&file_format=' + options.file_format;
+                const transformed = options.transform(body);
+                const fileName = options.location + "/" + locale + "." + options.file_extension;
 
-    request(translationPath, function(err, res, body) {
-      if (!err && res.statusCode >= 200 && res.statusCode < 300) {
-        var transformed = options.transform(body);
-        var fileName = options.location + "/" + locale + "." + options.file_extension;
+                fs.writeFile(fileName, JSON.stringify(transformed, undefined, 2), function (err) {
+                    if (err) {
+                        return console.error("An error occured when downloading translation file", err);
+                    }
 
-        fs.writeFile(fileName, transformed, function(err) {
-          if (err) {
-            return console.error("An error occured when downloading translation file", err);
-          }
-
-          return callback(null, fileName);
-        })
-      } else {
-        if (err) {
-          console.error("An error occured when downloading translation file", err);
-          return callback(err);
-        }
-        console.error("Got status code " + res.statusCode);
-        return callback(true);
-      }
-    });
-  }
-}
+                    return callback(null, fileName);
+                })
+            } else {
+                if (err) {
+                    console.error("An error occured when downloading translation file", err);
+                    return callback(err);
+                }
+                console.error("Got status code " + res.statusCode);
+                return callback(true);
+            }
+        });
+    }
+};
