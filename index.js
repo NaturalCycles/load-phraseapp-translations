@@ -40,7 +40,7 @@ class PhraseappLoader {
     download(callback) {
         const self = this;
 
-        this.fetchLocales(function (err, locales) {
+        this.fetchLocaleCodes(function (err, locales) {
                 console.log("Got locales", locales);
                 if (!err) {
                     async.eachLimit(locales, 2, function (l, callback) {
@@ -59,6 +59,27 @@ class PhraseappLoader {
         );
     }
 
+    fetchProjects(callback) {
+        const options = this.options;
+
+        request(path + '/projects?access_token=' + options.access_token, function (err, res, body) {
+            if (!err && res.statusCode < 400) {
+                if (typeof body === 'string') {
+                    try {
+                        body = JSON.parse(body)
+                    } catch (e) {
+                        console.log(e)
+                    }
+                }
+
+                return callback(null, body);
+            } else if (err) {
+                console.error("An error occurred when fetching projects", err);
+                return callback(err);
+            }
+        });
+    }
+
     fetchLocales(callback) {
         const options = this.options;
 
@@ -72,8 +93,7 @@ class PhraseappLoader {
                     }
                 }
 
-                const locales = _.map(body, "code");
-                return callback(null, locales);
+                return callback(null, body);
             } else if (err) {
                 console.error("An error occurred when fetching locales", err);
                 return callback(err);
@@ -81,12 +101,24 @@ class PhraseappLoader {
         });
     }
 
+    fetchLocaleCodes(callback) {
+        this.fetchLocales((err, body) => {
+            if (err) {
+                callback(err)
+            } else {
+                const localeCodes = _.map(body, "code");
+                callback(null, localeCodes)
+            }
+        })
+    }
+
     fetchTranslationFile(locale, callback) {
         const options = this.options;
         const translationPath = path + '/projects/' + options.project_id + '/locales/' + locale + '/download?access_token=' + options.access_token + '&file_format=' + options.file_format;
 
+        console.log('Fetching ' + translationPath)
         request(translationPath, function (err, res, body) {
-            if (!err && res.statusCode >= 200 && res.statusCode < 300) {
+            if (!err && res.statusCode >= 200 && res.statusCode < 400) {
                 if (typeof body === 'string') {
                     try {
                         body = JSON.parse(body)
@@ -132,5 +164,5 @@ class PhraseappLoader {
     }
 };
 
-
 module.exports = PhraseappLoader;
+module.exports.PhraseappLoader = PhraseappLoader;

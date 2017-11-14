@@ -50,7 +50,7 @@ describe("#configure", function () {
     })
 });
 
-describe("#fetchLocales", function () {
+describe("#fetchLocaleCodes", function () {
     let api, loader;
 
     before(function () {
@@ -105,7 +105,7 @@ describe("#fetchLocales", function () {
     });
 
     it("has two locales", function (done) {
-        loader.fetchLocales(function (err, res) {
+        loader.fetchLocaleCodes(function (err, res) {
             if (err) return done(err);
             res.should.have.length(2);
             done();
@@ -113,7 +113,7 @@ describe("#fetchLocales", function () {
     });
 
     it("is an array", function (done) {
-        loader.fetchLocales(function (err, res) {
+        loader.fetchLocaleCodes(function (err, res) {
             if (err) return done(err);
             res.should.be.an("array");
             done();
@@ -121,7 +121,7 @@ describe("#fetchLocales", function () {
     });
 
     it("contains German and English", function (done) {
-        loader.fetchLocales(function (err, res) {
+        loader.fetchLocaleCodes(function (err, res) {
             if (err) return done(err);
             res.should.have.members(["de", "en"]);
             done();
