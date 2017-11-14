@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Download PhraseApp translation files for your app. Default format is i18n-node-2 compliant.",
   "main": "index.js",
+  "typings": "index.d.ts",
   "scripts": {
     "test": "make test"
   },

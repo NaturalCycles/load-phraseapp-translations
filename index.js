@@ -15,7 +15,7 @@ const request = new ETagRequest({
 
 const path = 'https://api.phraseapp.com/v2';
 
-module.exports = class PhraseappLoader {
+class PhraseappLoader {
     constructor(options) {
         if (!options.access_token || !options.project_id) {
             throw new Error('Must supply a value for access_token and project_id');
@@ -81,7 +81,7 @@ module.exports = class PhraseappLoader {
         });
     }
 
-    downloadTranslationFile(locale, callback) {
+    fetchTranslationFile(locale, callback) {
         const options = this.options;
         const translationPath = path + '/projects/' + options.project_id + '/locales/' + locale + '/download?access_token=' + options.access_token + '&file_format=' + options.file_format;
 
@@ -97,23 +97,40 @@ module.exports = class PhraseappLoader {
                 }
 
                 const transformed = options.transform(body);
-                const fileName = options.location + "/" + locale + "." + options.file_extension;
 
-                fs.writeFile(fileName, JSON.stringify(transformed, undefined, 2), function (err) {
-                    if (err) {
-                        return console.error("An error occured when downloading translation file", err);
-                    }
-
-                    return callback(null, fileName);
-                })
+                callback(null, transformed);
             } else {
                 if (err) {
                     console.error("An error occured when downloading translation file", err);
                     return callback(err);
                 }
+
                 console.error("Got status code " + res.statusCode);
                 return callback(true);
             }
         });
     }
+
+    downloadTranslationFile(locale, callback) {
+        const options = this.options;
+
+        this.fetchTranslationFile(locale, function (err, transformed) {
+            if (err) {
+                return callback(err);
+            }
+
+            const fileName = options.location + "/" + locale + "." + options.file_extension;
+
+            fs.writeFile(fileName, JSON.stringify(transformed, undefined, 2), function (err) {
+                if (err) {
+                    return console.error("An error occured when downloading translation file", err);
+                }
+
+                return callback(null, fileName);
+            });
+        });
+    }
 };
+
+
+module.exports = PhraseappLoader;
